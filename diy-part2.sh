@@ -16,16 +16,3 @@
 # Modify default theme
 #sed -i 's/luci-theme-bootstrap/luci-theme-argon/g' feeds/luci/collections/luci/Makefile
 
-# Modify hostname
-#sed -i 's/OpenWrt/P3TERX-Router/g' package/base-files/files/bin/config_generate
-#!/bin/bash
-# diy-part2.sh 完整内容
-cd "$(dirname $0)/openwrt" || exit 1
-
-# 启用 BBRv3 及依赖配置
-./scripts/config -e CONFIG_KERNEL_TCP_CONG_ADVANCED
-./scripts/config -e CONFIG_KERNEL_TCP_CONG_BBR3
-# 可选：设置为默认拥塞控制算法
-./scripts/config --set-str CONFIG_KERNEL_DEFAULT_TCP_CONG "bbr3"
-
-make defconfig
