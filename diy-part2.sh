@@ -19,24 +19,13 @@
 # Modify hostname
 #sed -i 's/OpenWrt/P3TERX-Router/g' package/base-files/files/bin/config_generate
 #!/bin/bash
-# diy-part2.sh - 自定义编译配置，添加 BBRv3 支持
-
-# 切换到 OpenWrt 源码目录
+# diy-part2.sh 完整内容
 cd "$(dirname $0)/openwrt" || exit 1
 
-# 启用 BBRv3 相关内核选项
-# 1. 启用 TCP BBRv3 拥塞控制算法
-echo 'CONFIG_KERNEL_TCP_CONG_BBR3=y' >> .config
-# 2. 启用必要的依赖选项（确保 BBRv3 能正常工作）
-echo 'CONFIG_KERNEL_TCP_CONG_ADVANCED=y' >> .config
-echo 'CONFIG_KERNEL_NET_SCHED=y' >> .config
-echo 'CONFIG_KERNEL_NET_CLS_ACT=y' >> .config
-echo 'CONFIG_KERNEL_NET_ACT_POLICE=y' >> .config
-
-# 如果需要将 BBRv3 设置为默认拥塞控制算法，添加以下配置
-# echo 'CONFIG_KERNEL_DEFAULT_TCP_CONG="bbr3"' >> .config
-
-# 清理重复配置并更新 .config
-./scripts/config -u CONFIG_KERNEL_TCP_CONG_BBR
+# 启用 BBRv3 及依赖配置
+./scripts/config -e CONFIG_KERNEL_TCP_CONG_ADVANCED
 ./scripts/config -e CONFIG_KERNEL_TCP_CONG_BBR3
+# 可选：设置为默认拥塞控制算法
+./scripts/config --set-str CONFIG_KERNEL_DEFAULT_TCP_CONG "bbr3"
+
 make defconfig
