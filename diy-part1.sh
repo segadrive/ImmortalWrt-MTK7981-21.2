@@ -18,3 +18,10 @@
 # echo 'src-git timecontrol https://github.com/sirpdboy/luci-app-timecontrol' >>feeds.conf.default
 # echo 'src-git taskplan https://github.com/sirpdboy/luci-app-taskplan' >>feeds.conf.default
 #echo 'src-git passwall https://github.com/xiaorouji/openwrt-passwall' >>feeds.conf.default
+# diy-part1.sh 新增内容
+cd openwrt
+# 应用 BBRv3 补丁到内核
+if [ -f ../patches/kernel/bbr3-5.4.patch ]; then
+    patch -p1 < ../patches/kernel/bbr3-5.4.patch
+    echo "BBRv3 补丁已应用"
+fi
