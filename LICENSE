@@ -1,3 +1,14 @@
+云编译7981固件 （p3terx 2024新版 基于ubuntu22.04）
+
+路由器型号：
+
+ 360T7 / CMCC3000M / CMCCXR30 / JCG Q30
+说明：
+
+ 21.02/24.10闭源WIFI固件（基于immortalwrt）
+
+
+ 默认地址：192.168.1.1  密码：无，直接回车。
 MIT License
 
 Copyright (c) 2019-2024 P3TERX <https://p3terx.com>
