@@ -48,8 +48,6 @@ echo 'src-git tailscale_community https://github.com/Tokisaki-Galaxy/luci-app-ta
 echo 'src-git owq_wol https://github.com/isalikai/luci-app-owq-wol.git' >> feeds.conf.default
 # timecontrol (上网时间控制)
 echo 'src-git timecontrol https://github.com/gaobin89/luci-app-timecontrol' >>feeds.conf.default
-# authshield (登录防护)
-echo 'src-git authshield https://github.com/iv7777/luci-app-authshield' >>feeds.conf.default
 
 # 主题
 git clone --depth=1 -b openwrt-25.12 https://github.com/sbwml/luci-theme-argon package/argon
