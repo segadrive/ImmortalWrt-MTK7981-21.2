@@ -13,9 +13,6 @@
 
 237大佬源码网址: https://github.com/padavanonly/immortalwrt-mt798x-24.10
 
-使用p3terx云编译模板
-
-固件位置： https://github.com/sonytxl/xiaomi-360-cmcc-immortalwrt/releases
 
 注意事项：
 
