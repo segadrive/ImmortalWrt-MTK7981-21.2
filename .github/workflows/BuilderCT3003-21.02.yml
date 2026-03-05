@@ -10,7 +10,7 @@
 # See /LICENSE for more information.
 #
 
-name: ImmortalWrt  CT3003-21.02
+name: ImmortalWrt CT3003-21.02
 
 on:
   repository_dispatch:
