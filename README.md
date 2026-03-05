@@ -1,3 +1,13 @@
+云编译7981固件 （p3terx 2024新版 基于ubuntu22.04）
+
+路由器型号：
+
+ 360T7 / CMCC3000M / CT3003 / 
+说明：
+ 21.02闭源WIFI固件（基于immortalwrt）
+ 24.10闭源WIFI固件（基于immortalwrt）
+
+ 默认地址：192.168.1.1  密码：无，直接回车。
 **English** | [中文](https://p3terx.com/archives/build-openwrt-with-github-actions.html)
 
 # Actions-OpenWrt
