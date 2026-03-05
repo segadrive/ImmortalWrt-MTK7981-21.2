@@ -1,1 +1,217 @@
+#
+# 脚本来源：https://github.com/P3TERX/Actions-OpenWrt
+# 文件名：.github/workflows/openwrt-bulder.yml
+# 功能：使用 GitHub Actions 编译 ImmortalWrt 固件（适配中国移动 RAX3000M 路由器）
+# 版权：2019-2024 P3TERX <https://p3terx.com>
+# 协议：MIT License（自由使用、修改、分发）
+#
 
+# 工作流名称（GitHub Actions 页面显示的名称，自定义为“RAX3000M 固件编译”）
+name: ImmortalWrt RAX3000M-24.10
+
+# 工作流触发条件
+on:
+  repository_dispatch:  # 仓库事件触发（如API调用、外部工具触发）
+  workflow_dispatch:    # 手动触发（核心！在GitHub页面点击“Run workflow”即可启动编译）
+
+# 全局环境变量（整个编译流程共用，可根据需求修改）
+env:
+  REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-6.6  # ImmortalWrt源码地址（适配MT798x芯片，6.6内核）
+  REPO_BRANCH: openwrt-24.10-6.6                                   # 源码分支（24.10版本，6.6内核，适配RAX3000M）
+  FEEDS_CONF: feeds.conf.default                                   # 自定义feeds配置文件（软件源，可添加第三方插件）
+  CONFIG_FILE: 24.10/RAX3000M-24.10.config                                     # RAX3000M专用编译配置文件（决定固件包含的功能）
+  DIY_P1_SH: 24.10/diy-part1.sh                                          # 自定义脚本1（编译前准备：添加feeds、修改源码等）
+  DIY_P2_SH: 24.10/diy-part2.sh                                          # 自定义脚本2（编译前调整：开BBR、改默认IP、加插件等）
+  UPLOAD_BIN_DIR: false                                             # 是否上传完整bin目录（体积大，含中间文件，建议关闭）
+  UPLOAD_FIRMWARE: true                                            # 是否上传最终固件目录（仅保留可刷写的固件，建议开启）
+  UPLOAD_RELEASE: true                                             # 是否发布到GitHub Release（方便下载，建议开启）
+  TZ: Asia/Shanghai                                                # 时区（避免编译时间错乱，固定为上海时区）
+
+# 定义编译任务（整个流程的核心）
+jobs:
+  build:
+    runs-on: ubuntu-22.04  # 运行环境：GitHub提供的Ubuntu 22.04虚拟机（兼容性最佳）
+
+    # 步骤1：检出当前仓库代码（包含你的自定义配置/脚本）
+    steps:
+    - name: Checkout
+      uses: actions/checkout@main  # 使用GitHub官方的“检出代码”动作
+
+    # 步骤2：初始化编译环境（安装依赖、清理系统、设置时区）
+    - name: Initialization environment
+      env:
+        DEBIAN_FRONTEND: noninteractive  # 禁用apt-get交互提示（自动确认所有操作）
+      run: |
+        # 清理系统冗余文件（释放磁盘空间，避免编译时空间不足）
+        sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+        sudo docker image prune --all --force
+        # 更新apt软件源
+        sudo apt update
+        # 安装编译ImmortalWrt（MT798x/6.6内核）所需的所有依赖包（比普通OpenWrt多clang/llvm等编译工具）
+        sudo apt install -y ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential bzip2 ccache clang cmake cpio curl device-tree-compiler ecj fastjar flex gawk gettext gcc-multilib g++-multilib git gnutls-dev gperf haveged help2man intltool lib32gcc-s1 libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses-dev libpython3-dev libreadline-dev libssl-dev libtool libyaml-dev libz-dev lld llvm lrzsz mkisofs msmtp nano ninja-build p7zip p7zip-full patch pkgconf python3 python3-pip python3-ply python3-docutils python3-pyelftools qemu-utils re2c rsync scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev zstd
+        # 清理apt缓存，释放更多空间
+        sudo apt autoremove --purge
+        sudo apt clean
+        # 设置系统时区（和env里的TZ保持一致）
+        sudo timedatectl set-timezone "$TZ"
+        # 创建编译目录并授权（避免权限不足导致编译失败）
+        sudo mkdir -p /workdir
+        sudo chown $USER:$GROUPS /workdir
+
+    # 步骤3：克隆ImmortalWrt源码（到/workdir目录，避免根目录空间不足）
+    - name: Clone source code
+      working-directory: /workdir  # 切换工作目录到/workdir
+      run: |
+        # 查看当前目录磁盘空间（方便排查空间不足问题）
+        df -hT $PWD
+        # 克隆源码到openwrt子目录（指定分支）
+        git clone $REPO_URL -b $REPO_BRANCH openwrt
+        # 创建软链接，方便后续操作（无需频繁切换到/workdir/openwrt）
+        ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
+
+    # 步骤4：加载自定义feeds（添加第三方软件源，如PassWall、OpenClash等）
+    - name: Load custom feeds
+      run: |
+        # 若存在自定义feeds.conf.default，替换源码默认配置（添加第三方插件源）
+        [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
+        # 给自定义脚本1添加可执行权限
+        chmod +x $DIY_P1_SH
+        cd openwrt
+        # 执行自定义脚本1（如添加插件源、修改feeds优先级等）
+        $GITHUB_WORKSPACE/$DIY_P1_SH
+
+    # 步骤5：更新feeds（拉取所有软件源的最新代码）
+    - name: Update feeds
+      run: cd openwrt && ./scripts/feeds update -a
+
+    # 步骤6：安装feeds（将软件源的包安装到源码中，供编译选择）
+    - name: Install feeds
+      run: cd openwrt && ./scripts/feeds install -a
+
+    # 步骤7：加载自定义配置（替换编译配置、执行自定义脚本2）
+    - name: Load custom configuration
+      run: |
+        # 若存在files目录（自定义固件文件：默认配置、开机脚本等），移动到源码中
+        [ -e files ] && mv files openwrt/files
+        # 将RAX3000M专用配置文件替换成源码的.config（核心！决定固件功能）
+        [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
+        # 给自定义脚本2添加可执行权限
+        chmod +x $DIY_P2_SH
+        cd openwrt
+        # 执行自定义脚本2（如开启BBRv3、修改默认IP为192.168.5.1、添加Transmission等）
+        $GITHUB_WORKSPACE/$DIY_P2_SH
+
+    # 步骤8：下载编译所需的包（提前下载依赖，避免编译时在线下载卡顿/失败）
+    - name: Download package
+      id: package  # 步骤ID，供后续判断是否执行成功
+      run: |
+        cd openwrt
+        # 生成默认配置（验证.config文件合法性，自动补全依赖）
+        make defconfig
+        # 8线程下载依赖包（速度更快，可根据需要调整-j后的数字）
+        make download -j8
+        # 查找并列出空文件（下载失败的包）
+        find dl -size -1024c -exec ls -l {} \;
+        # 删除空文件（避免编译时因损坏的包失败）
+        find dl -size -1024c -exec rm -f {} \;
+
+    # 步骤9：编译固件（核心步骤，失败会降级重试）
+    - name: Compile the firmware
+      id: compile  # 步骤ID
+      run: |
+        cd openwrt
+        # 打印CPU核心数，确认多线程编译的线程数
+        echo -e "$(nproc) thread compile"
+        # 多线程编译（优先用满CPU核心，失败则单线程重试，再失败则输出详细日志V=s）
+        make -j$(nproc) || make -j1 || make -j1 V=s
+        # 标记编译成功（供后续步骤判断）
+        echo "status=success" >> $GITHUB_OUTPUT
+        # 从.config中提取设备名称（用于固件命名）
+        grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
+        # 将设备名称写入环境变量
+        [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV
+        # 将编译时间写入环境变量（用于固件版本区分）
+        echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
+
+    # 步骤10：检查磁盘空间使用情况（排查空间不足问题）
+    - name: Check space usage
+      if: (!cancelled())  # 仅当工作流未被取消时执行
+      run: df -hT
+
+    # 步骤11：上传bin目录（完整编译产物，体积大，默认关闭）
+    - name: Upload bin directory
+      uses: actions/upload-artifact@main
+      # 仅当编译成功且UPLOAD_BIN_DIR为true时执行
+      if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
+      with:
+        name: OpenWrt_bin${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}  # 上传包名称（设备+时间）
+        path: openwrt/bin                                           # 要上传的目录
+
+    # 步骤12：整理固件文件（只保留可刷写的固件，删除冗余的packages目录）
+    - name: Organize files
+      id: organize
+      # 仅当UPLOAD_FIRMWARE为true且工作流未取消时执行
+      if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
+      run: |
+        # 进入固件输出目录（不同设备路径不同，用通配符匹配）
+        cd openwrt/bin/targets/*/*
+        # 删除packages目录（插件包已内置到固件，无需单独上传）
+        rm -rf packages
+        # 将固件目录路径写入环境变量（供后续上传使用）
+        echo "FIRMWARE=$PWD" >> $GITHUB_ENV
+        # 标记整理成功
+        echo "status=success" >> $GITHUB_OUTPUT
+
+    # 步骤13：上传固件目录（仅保留可刷写的固件文件，方便下载）
+    - name: Upload firmware directory
+      uses: actions/upload-artifact@main
+      # 仅当整理成功且工作流未取消时执行
+      if: steps.organize.outputs.status == 'success' && !cancelled()
+      with:
+        name: OpenWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}  # 上传包名称
+        path: ${{ env.FIRMWARE }}                                        # 固件目录路径
+
+    # 步骤14：生成Release标签（用于发布固件，格式为“年.月.日-时分钟”）
+    - name: Generate release tag
+      id: tag
+      # 仅当UPLOAD_RELEASE为true且工作流未取消时执行
+      if: env.UPLOAD_RELEASE == 'true' && !cancelled()
+      run: |
+        # 生成唯一的发布标签（标识本次编译的固件）
+        echo "release_tag=$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_OUTPUT
+        # 创建release说明文件（可自定义添加固件特性、更新日志）
+        touch release.txt
+        # （可选）若配置了GoFile上传，添加链接到说明文件（当前未启用，仅占位）
+        [ ${UPLOAD_GOFILE} = true && ${{ steps.gofile.outputs.url }} ] && echo "🔗 [GoFile](${{ steps.gofile.outputs.url }})" >> release.txt
+        # 标记标签生成成功
+        echo "status=success" >> $GITHUB_OUTPUT
+
+    # 步骤15：将固件上传到GitHub Release（方便分享和下载）
+    - name: Upload firmware to release
+      uses: softprops/action-gh-release@master  # 使用第三方Release上传工具
+      # 仅当标签生成成功且工作流未取消时执行
+      if: steps.tag.outputs.status == 'success' && !cancelled()
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # GitHub自动生成的令牌（无需手动配置，用于发布授权）
+      with:
+        tag_name: ${{ steps.tag.outputs.release_tag }}  # 发布标签（和上面生成的一致）
+        body_path: release.txt                          # 发布说明文件（可手动编辑添加固件信息）
+        files: ${{ env.FIRMWARE }}/*                    # 要发布的所有固件文件
+
+    # 步骤16：删除旧的工作流运行记录（节省GitHub存储空间）
+    - name: Delete workflow runs
+      uses: Mattraks/delete-workflow-runs@main
+      with:
+        retain_days: 0          # 保留天数（0=删除所有旧记录）
+        keep_minimum_runs: 2    # 至少保留2条最新记录（方便回溯）
+
+    # 步骤17：删除旧的Releases（只保留最新3个，避免存储空间爆满）
+    - name: Remove old Releases
+      uses: dev-drprasad/delete-older-releases@master
+      # 仅当UPLOAD_RELEASE为true且工作流未取消时执行
+      if: env.UPLOAD_RELEASE == 'true' && !cancelled()
+      with:
+        keep_latest: 3          # 保留最新3个Release版本
+        delete_tags: true       # 同时删除对应的标签（避免标签冗余）
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # 授权令牌
