@@ -38,7 +38,7 @@ echo 'src-git lucky https://github.com/gdy666/luci-app-lucky.git' >> feeds.conf.
 # echo 'src-git watchdog https://github.com/sirpdboy/luci-app-watchdog.git' >> feeds.conf.default
 # echo 'src-git taskplan https://github.com/sirpdboy/luci-app-taskplan.git' >> feeds.conf.default
 # Authshield (认证屏蔽/管理)
-echo 'src-git authshield https://github.com/iv7777/luci-app-authshield.git' >> feeds.conf.default
+# echo 'src-git authshield https://github.com/iv7777/luci-app-authshield.git' >> feeds.conf.default
 # EasyTier (内网穿透组网)
 # echo 'src-git easytier https://github.com/EasyTier/luci-app-easytier.git' >> feeds.conf.default
 # Tailscale Community (注意：改名为 tailscale_community 以防与官方 packages 里的 tailscale 混淆)
@@ -54,3 +54,7 @@ echo 'src-git tailscale_community https://github.com/Tokisaki-Galaxy/luci-app-ta
 # echo 'src-git aurora_config https://github.com/eamonxg/luci-app-aurora-config.git' >> feeds.conf.default
 # echo 'src-git kucat https://github.com/sirpdboy/luci-theme-kucat.git' >> feeds.conf.default
 # echo 'src-git kucat_config https://github.com/sirpdboy/luci-app-kucat-config.git' >> feeds.conf.default
+
+# Authshield (认证屏蔽/管理)
+UPDATE_PACKAGE "luci-app-authshield" "iv7777/luci-app-authshield" "main"
+
