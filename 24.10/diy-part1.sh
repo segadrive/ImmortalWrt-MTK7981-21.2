@@ -46,6 +46,8 @@ echo 'src-git easytier https://github.com/EasyTier/luci-app-easytier.git' >> fee
 echo 'src-git tailscale_community https://github.com/Tokisaki-Galaxy/luci-app-tailscale-community.git' >> feeds.conf.default
 # OWQ WOL (网络唤醒)
 echo 'src-git owq_wol https://github.com/isalikai/luci-app-owq-wol.git' >> feeds.conf.default
+# timecontrol (上网时间控制)
+echo 'src-git timecontrol https://github.com/gaobin89/luci-app-timecontrol' >>feeds.conf.default
 
 # 主题
 # git clone --depth=1 -b openwrt-25.12 https://github.com/sbwml/luci-theme-argon package/argon
