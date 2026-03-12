@@ -207,7 +207,7 @@ jobs:
 
     # 步骤17：删除旧的Releases（只保留最新3个，避免存储空间爆满）
     - name: Remove old Releases
-      uses: dev-drprasad/delete-older-releases@v1.1.0
+      uses: dev-drprasad/delete-older-releases@v1.0.4
       # 仅当UPLOAD_RELEASE为true且工作流未取消时执行
       if: env.UPLOAD_RELEASE == 'true' && !cancelled()
       with:
